@@ -12,6 +12,17 @@ __all__ = ['Bottleneck', 'MobilenetV2']
 BottleneckBlock = namedtuple('Bottleneck', ['filters', 'strides', 'expansion'])
 
 
+
+class Squeeze(tf.keras.layers.Layer):
+	def __init__(self):
+		super(Squeeze, self).__init__()
+
+
+	def call(self, inputs):
+		return tf.squeeze(inputs, axis=[1, 2])
+
+
+
 class Bottleneck(tf.keras.layers.Layer):
 	"""docstring for Bottleneck"""
 	def __init__(self, filters, strides=(1, 1), expansion=1):
@@ -42,17 +53,17 @@ class Bottleneck(tf.keras.layers.Layer):
 		self.expand_channel = self.expansion * self.input_channels
 
 		self.pointwise_conv = Conv2D(filters=self.filters, kernel_size=(1, 1), strides=(1, 1),
-																 activation = 'relu', kernel_regularizer=tf.keras.regularizers.l2(0.00004))
+																 activation = ReLU(max_value=6), kernel_regularizer=tf.keras.regularizers.l2(0.00004))
 		self.batch_norm_0 = BatchNormalization(axis=3, momentum=0.9997, scale=False)
 
 		
 		self.depthwise_conv = DepthwiseConv2D(kernel_size=(3, 3), strides=self.strides, padding='same',
-																					activation = 'relu', depthwise_regularizer=tf.keras.regularizers.l2(0.00004))
+																					activation = ReLU(max_value=6), depthwise_regularizer=tf.keras.regularizers.l2(0.00004))
 		self.batch_norm_depthwise = BatchNormalization(axis=3, momentum=0.9997, scale=False)
 
 
 		self.pointwise_conv_2 = Conv2D(filters=self.filters, kernel_size=(1, 1), strides=(1, 1),
-																 activation = 'relu', kernel_regularizer=tf.keras.regularizers.l2(0.00004))
+																 activation = ReLU(max_value=6), kernel_regularizer=tf.keras.regularizers.l2(0.00004))
 		self.batch_norm_1 = BatchNormalization(axis=3, momentum=0.9997, scale=False)
 
 
@@ -103,7 +114,7 @@ class MobilenetV2(tf.keras.Sequential):
 		# Add logit
 		if self.num_classes is not None:
 			self.body += [AveragePooling2D(pool_size=(7, 7), data_format='channels_last'), # 1x1x1280
-			Dropout(rate=0.8), Conv2D(filters=self.num_classes, kernel_size=(1, 1)), Softmax()]
+			Dropout(rate=0.8), Conv2D(filters=self.num_classes, kernel_size=(1, 1)), Squeeze(), Softmax()]
 			# Output shape: (batch_size, num_classes)
 
 		for layer in self.body:
