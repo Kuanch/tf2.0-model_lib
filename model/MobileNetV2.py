@@ -1,8 +1,7 @@
 from __future__ import print_function, division, absolute_import
 
 import tensorflow as tf
-from tensorflow.keras.layers import Conv2D, SeparableConv2D, ReLU, BatchNormalization, AveragePooling2D, \
-									Dropout, Softmax
+from tensorflow.keras.layers import Conv2D, DepthwiseConv2D, ReLU, BatchNormalization, AveragePooling2D, Dropout, Softmax
 
 from collections import namedtuple
 
@@ -42,9 +41,19 @@ class Bottleneck(tf.keras.layers.Layer):
 		self.input_channels = input_shape.as_list()[-1]
 		self.expand_channel = self.expansion * self.input_channels
 
-		self.pointwise_conv = Conv2D(filters=self.filters, kernel_size=(1, 1), strides=(1, 1))
-		self.depthwise_conv = SeparableConv2D(filters=self.expand_channel, kernel_size=(3, 3), strides=self.strides, padding='same')
-		self.pointwise_conv_2 = Conv2D(filters=self.filters, kernel_size=(1, 1), strides=(1, 1))
+		self.pointwise_conv = Conv2D(filters=self.filters, kernel_size=(1, 1), strides=(1, 1),
+																 activation = 'relu', kernel_regularizer=tf.keras.regularizers.l2(0.00004))
+		self.batch_norm_0 = BatchNormalization(axis=3, momentum=0.9997, scale=False)
+
+		
+		self.depthwise_conv = DepthwiseConv2D(kernel_size=(3, 3), strides=self.strides, padding='same',
+																					activation = 'relu', depthwise_regularizer=tf.keras.regularizers.l2(0.00004))
+		self.batch_norm_depthwise = BatchNormalization(axis=3, momentum=0.9997, scale=False)
+
+
+		self.pointwise_conv_2 = Conv2D(filters=self.filters, kernel_size=(1, 1), strides=(1, 1),
+																 activation = 'relu', kernel_regularizer=tf.keras.regularizers.l2(0.00004))
+		self.batch_norm_1 = BatchNormalization(axis=3, momentum=0.9997, scale=False)
 
 
 
@@ -54,7 +63,7 @@ class Bottleneck(tf.keras.layers.Layer):
 
 
 
-class MobilenetV2(tf.keras.Model):
+class MobilenetV2(tf.keras.Sequential):
 	"""docstring for MobilenetV2"""
 	def __init__(self, num_classes=None):
 		super(MobilenetV2, self).__init__()
@@ -97,22 +106,22 @@ class MobilenetV2(tf.keras.Model):
 			Dropout(rate=0.8), Conv2D(filters=self.num_classes, kernel_size=(1, 1)), Softmax()]
 			# Output shape: (batch_size, num_classes)
 
-
-	@tf.function
-	def call(self, inputs):
-		output = self.mobilenet()(inputs)
-		output = tf.squeeze(output, [1, 2])
-		return output
+		for layer in self.body:
+			self.add(layer)
 
 
-	def mobilenet(self):
-		return tf.keras.Sequential(self.body)
-		
+	def add(self, layer):
+	  super(MobilenetV2, self).add(layer)
+        
+
+# Default preprocessing size from origin parper
+MobilenetV2.default_image_size = 224
 
 
 
 # Flow test
 if __name__ == '__main__':
 	x = tf.ones([10, 224, 224, 3], dtype=tf.float32)
-	output = MobilenetV2(num_classes=10)(x)
+	model = MobilenetV2(num_classes=10)
+	output = model(x)
 	print(x.get_shape().as_list(), output.get_shape().as_list())
