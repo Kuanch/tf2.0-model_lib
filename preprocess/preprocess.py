@@ -30,7 +30,7 @@ def distort_color(image, color_ordering=0, fast_mode=True, scope=None):
 
 
 
-def preprocess_for_train(images, labels, image_name, width, height, num_label, fast_mode=True, distort_color=False, is_training=True, cifar10_mode=False):
+def preprocess_for_train(images, labels, width, height, num_label, fast_mode=True, distort_color=False, is_training=True, cifar10_mode=False):
 
   if images.dtype != tf.float32:
     images = tf.image.convert_image_dtype(images, dtype=tf.float32)
@@ -55,10 +55,12 @@ def preprocess_for_train(images, labels, image_name, width, height, num_label, f
 
     # Label process
     labels = tf.one_hot(labels, num_label)
-    if cifar10_mode:
-      labels = tf.squeeze(labels, axis=1)
+  
+  if cifar10_mode:
+    labels = tf.squeeze(labels, axis=0)
+
     return distorted_images, labels
 
   else:
-    return distorted_images, labels, image_name
+    return distorted_images, labels, 
 
